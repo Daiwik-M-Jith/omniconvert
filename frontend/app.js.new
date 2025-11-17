@@ -1,0 +1,83 @@
+// Consolidated minimal frontend (single file)
+(function () {
+  const $ = id => document.getElementById(id);
+  const form = $('convert-form');
+  const fileInput = $('file-input');
+  const dropzone = $('dropzone');
+  const clearBtn = $('clear-file');
+  const targetSelect = $('target-format');
+  const fileInfo = $('file-info');
+  const filePreview = $('file-preview');
+  const fileName = $('file-name');
+  const fileSize = $('file-size');
+  const historyList = $('history-list');
+  const progressRoot = $('convert-progress');
+  const progressBar = $('progress-bar');
+  const toastEl = $('toast');
+  const refreshBtn = $('refresh-history');
+  const targetNote = $('target-note');
+
+  let currentPreviewUrl = null;
+
+  async function fetchFormats() {
+    try { const res = await fetch('/api/formats'); return await res.json(); } catch (e) { return []; }
+  }
+
+  async function fetchHistory() { try { const res = await fetch('/api/history'); return await res.json(); } catch (e) { return []; } }
+
+  function formatBytes(size) { if (!size) return '—'; if(size < 1024) return `${size} B`; if(size < 1024 * 1024) return `${(size/1024).toFixed(1)} KB`; return `${(size/(1024*1024)).toFixed(2)} MB`; }
+
+  function showFileInfo(file) {
+    if (!file) { fileInfo.hidden = true; return; }
+    fileInfo.hidden = false; fileName.textContent = file.name; fileSize.textContent = formatBytes(file.size);
+    if (file.type && file.type.startsWith('image/')) { if (currentPreviewUrl) URL.revokeObjectURL(currentPreviewUrl); currentPreviewUrl = URL.createObjectURL(file); filePreview.src = currentPreviewUrl; filePreview.hidden = false; } else { filePreview.hidden = true; }
+  }
+
+  async function renderTargets(ext) {
+    const fmts = await fetchFormats(); targetSelect.innerHTML = '';
+    if (!ext) { const all = Array.from(new Set(fmts.flatMap(f => f.targets.map(t => t.ext)))); if (!all.length) { targetSelect.innerHTML = '<option value="">No formats</option>'; return; } all.forEach(e => { const o = document.createElement('option'); o.value = e; o.textContent = e.toUpperCase(); targetSelect.appendChild(o); }); return; }
+    const entry = fmts.find(f => f.source === ext); if (!entry || !entry.targets.length) { targetSelect.innerHTML = '<option value="">No targets</option>'; return; }
+    entry.targets.forEach(t=> { const o = document.createElement('option'); o.value = t.ext; o.textContent = t.ext.toUpperCase(); if(t.note) o.dataset.note = t.note; targetSelect.appendChild(o); }); updateTargetNote();
+  }
+
+  function updateTargetNote() { const opt = targetSelect.selectedOptions[0]; if (!opt || !opt.dataset.note) { if (targetNote) targetNote.hidden = true; } else { targetNote.hidden = false; targetNote.textContent = opt.dataset.note; } }
+  targetSelect.addEventListener('change', updateTargetNote);
+
+  function showToast(txt, type='info', ms=3500){ if(!toastEl) { console[type === 'error' ? 'error':'log'](txt); return; } toastEl.textContent = txt; toastEl.className = `toast ${type}`; toastEl.hidden = false; clearTimeout(toastEl._timeout); toastEl._timeout = setTimeout(()=>{ toastEl.hidden = true; toastEl.className = 'toast'; }, ms); }
+
+  async function refreshHistory() {
+    const data = await fetchHistory(); historyList.innerHTML = '';
+    data.forEach(job => {
+      const li = document.createElement('li'); li.className = 'history-item'; const status = job.status||'pending';
+      li.innerHTML = `<div class="job-badge job-status-${status}">${status}</div><div class="meta"><div><strong>#${job.id}</strong> ${job.source_name} → ${job.target_format.toUpperCase()}</div></div>`;
+      const actions = document.createElement('div'); actions.className = 'history-actions';
+      if (job.artifact_stored) { const d = document.createElement('button'); d.className='small'; d.textContent='Download'; d.addEventListener('click', ()=>downloadArtifact(job.id)); actions.appendChild(d); }
+      if (job.original_stored) { const r = document.createElement('button'); r.className='small'; r.textContent='Re-run'; r.addEventListener('click', async ()=>{ r.disabled = true; showToast('Re-running...', 'info'); try { const res = await fetch(`/api/jobs/${job.id}/reconvert`, { method: 'POST' }); if (!res.ok) showToast('Re-run failed', 'error'); else { showToast('Re-run queued', 'success'); await refreshHistory(); } } catch (e) { showToast(e.message, 'error'); } finally { r.disabled = false; } }); actions.appendChild(r); }
+      const s = document.createElement('button'); s.className='small'; s.textContent='Share'; s.addEventListener('click', async ()=>{ s.disabled = true; try { const r = await fetch(`/api/jobs/${job.id}/share`, { method: 'POST' }); if (!r.ok) return showToast('Share failed', 'error'); const d = await r.json(); try { await navigator.clipboard.writeText(d.share_url); showToast('Share URL copied', 'success'); } catch { showToast(d.share_url, 'info'); } } catch (e) { showToast(e.message, 'error'); } finally { s.disabled = false; } }); actions.appendChild(s);
+      li.appendChild(actions); historyList.appendChild(li);
+    });
+  }
+
+  async function downloadArtifact(id){ try { const r = await fetch(`/api/jobs/${id}/artifact`); if (!r.ok) throw new Error('Artifact not available'); const blob = await r.blob(); const cd = r.headers.get('Content-Disposition')||''; const name = (cd.split('filename=')[1] || `artifact-${id}`).replace(/"/g,''); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href), 5000); } catch(e) { showToast(e.message || 'Download failed', 'error'); } }
+
+  function setProgress(p){ if(!progressRoot) return; progressRoot.hidden=false; progressBar.style.width = `${p}%`; }
+  function resetProgress(){ if(!progressRoot) return; progressBar.style.width = '0%'; progressRoot.hidden = true; }
+
+  function postWithProgress(fd){ return new Promise((resolve, reject)=>{ const xhr=new XMLHttpRequest(); xhr.open('POST', '/api/convert'); xhr.responseType='blob'; xhr.upload.addEventListener('progress', (e)=>{ if(e.lengthComputable){ const p=Math.floor((e.loaded/e.total)*80); setProgress(p); }}); xhr.addEventListener('load', ()=>{ setProgress(100); resolve({ status: xhr.status, headers: xhr.getAllResponseHeaders(), blob: xhr.response }); }); xhr.addEventListener('error', ()=>reject(new Error('Network error'))); xhr.send(fd); }); }
+
+  async function handleSubmit(e){ e.preventDefault(); if (!form.reportValidity()) return; const file = fileInput.files[0]; if(!file) return showToast('Pick a file','error'); if (!targetSelect.value) return showToast('Pick a target','error'); const fd = new FormData(); fd.append('file', file, file.name); fd.append('target_format', targetSelect.value); const btn = form.querySelector('.primary'); if(btn){ btn.disabled = true; btn.textContent = 'Converting...'; }
+    try { const r = await postWithProgress(fd); resetProgress(); if(r.status < 200 || r.status >= 300){ const txt = await new Response(r.blob).text().catch(()=>null); throw new Error(txt || `Conversion failed (${r.status})`); } const blob = r.blob; const hdrs = r.headers; const obj = {}; hdrs.split('\r\n').forEach(l=>{ const kv = l.split(': '); if(kv[0]) obj[kv[0]] = kv[1]; }); const cd = obj['Content-Disposition'] || 'attachment; filename=converted'; const fname = (cd.split('filename=')[1] || 'converted').replace(/"/g,''); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = fname; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href), 5000); showToast(`Downloaded ${fname}`, 'success'); fileInput.value = ''; showFileInfo(null); await refreshHistory(); } catch(e) { showToast(e.message || 'Conversion failed','error'); } finally { if(btn){ btn.disabled = false; btn.textContent = 'Convert'; } resetProgress(); }
+  }
+
+  ['dragenter','dragover'].forEach(evt => dropzone.addEventListener(evt, e => { e.preventDefault(); dropzone.classList.add('dragover'); }));
+  ['dragleave','drop'].forEach(evt => dropzone.addEventListener(evt, e => { e.preventDefault(); dropzone.classList.remove('dragover'); }));
+  dropzone.addEventListener('drop', (e)=>{ const f = e.dataTransfer.files[0]; if(!f) return; const dt=new DataTransfer(); dt.items.add(f); fileInput.files = dt.files; fileInput.dispatchEvent(new Event('change')); });
+
+  fileInput.addEventListener('change', e => { const f = e.target.files[0]; showFileInfo(f); renderTargets(f ? f.name.split('.').pop().toLowerCase() : null); });
+  clearBtn.addEventListener('click', ()=>{ fileInput.value = ''; showFileInfo(null); renderTargets(); });
+  form.addEventListener('submit', handleSubmit);
+  if (refreshBtn) refreshBtn.addEventListener('click', refreshHistory);
+
+  // init
+  (async ()=>{ await renderTargets(); await refreshHistory(); })();
+})();

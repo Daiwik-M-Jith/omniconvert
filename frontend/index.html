@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>OmniConvert — Universal File Converter</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="app-wrapper">
+        <nav class="top-nav" role="navigation" aria-label="Main navigation">
+            <div class="nav-brand">
+                <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                    <polyline points="7.5 4.21 12 6.81 16.5 4.21"></polyline>
+                    <polyline points="7.5 19.79 7.5 14.6 3 12"></polyline>
+                    <polyline points="21 12 16.5 14.6 16.5 19.79"></polyline>
+                    <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                    <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                </svg>
+                <span class="brand-text">OmniConvert</span>
+            </div>
+            <div class="nav-actions" role="tablist" aria-label="Primary views">
+                <button id="nav-convert" class="nav-btn active" role="tab" aria-selected="true" aria-controls="view-convert">Convert</button>
+                <button id="nav-history" class="nav-btn" role="tab" aria-selected="false" aria-controls="view-history">History</button>
+                <button id="nav-explore" class="nav-btn" role="tab" aria-selected="false" aria-controls="view-explore">Explore</button>
+            </div>
+        </nav>
+
+        <main class="main-content">
+            <!-- Convert View -->
+            <section id="view-convert" class="view active">
+                <div class="hero-banner">
+                    <h1 class="hero-title">Transform Any File<br><span class="gradient-text">Instantly</span></h1>
+                    <p class="hero-subtitle">No signup, no tracking — just fast, private conversions powered by your browser and our server.</p>
+                </div>
+
+                <div class="converter-panel">
+                    <form id="convert-form" class="convert-form">
+                        <div id="dropzone" class="file-dropzone">
+                            <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="17 8 12 3 7 8"></polyline>
+                                <line x1="12" y1="3" x2="12" y2="15"></line>
+                            </svg>
+                            <div class="dropzone-content">
+                                <strong class="dropzone-title">Drop file here or click to browse</strong>
+                                <span class="dropzone-hint">Supports most formats · Max 25MB</span>
+                            </div>
+                            <input type="file" id="file-input" name="file" required hidden>
+                        </div>
+
+                        <div id="file-selected" class="file-selected" hidden>
+                            <div class="file-preview-box">
+                                <img id="file-preview" class="file-preview-img" alt="" hidden>
+                                <div id="file-icon" class="file-icon-placeholder">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
+                                        <polyline points="13 2 13 9 20 9"></polyline>
+                                    </svg>
+                                </div>
+                            </div>
+                            <div class="file-info-box">
+                                <div class="file-name-text" id="file-name">—</div>
+                                <div class="file-size-text" id="file-size">—</div>
+                            </div>
+                            <button type="button" id="clear-file" class="btn-clear" aria-label="Clear file">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                                </svg>
+                            </button>
+                        </div>
+
+                        <div class="convert-controls">
+                            <div class="format-selector">
+                                <label for="target-format" class="format-label">Convert to</label>
+                                <select id="target-format" name="target_format" required>
+                                    <option value="">Select format...</option>
+                                </select>
+                                <div id="target-note" class="format-note" hidden></div>
+                            </div>
+                            <button type="submit" class="btn-convert">
+                                <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="16 3 21 3 21 8"></polyline>
+                                    <line x1="4" y1="20" x2="21" y2="3"></line>
+                                    <polyline points="21 16 21 21 16 21"></polyline>
+                                    <line x1="15" y1="15" x2="21" y2="21"></line>
+                                    <line x1="4" y1="4" x2="9" y2="9"></line>
+                                </svg>
+                                <span>Convert Now</span>
+                            </button>
+                        </div>
+
+                        <div id="convert-progress" class="progress-bar-wrapper" hidden>
+                            <div class="progress-bar" id="progress-bar"></div>
+                        </div>
+                    </form>
+                </div>
+            </section>
+
+            <!-- History View -->
+            <section id="view-history" class="view">
+                <div class="view-header">
+                    <h2 class="view-title">Conversion History</h2>
+                    <button id="refresh-history" class="btn-refresh" aria-label="Refresh">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="23 4 23 10 17 10"></polyline>
+                            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                        </svg>
+                    </button>
+                </div>
+                <ul id="history-list" class="history-list"></ul>
+            </section>
+
+            <!-- Explore View -->
+            <section id="view-explore" class="view">
+                <div class="view-header">
+                    <h2 class="view-title">All Supported Conversions</h2>
+                    <div class="search-box">
+                        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <path d="m21 21-4.35-4.35"></path>
+                        </svg>
+                        <input id="conversion-search" type="text" placeholder="Search formats (e.g., pdf, image)">
+                        <button id="clear-search" class="btn-clear-search" aria-label="Clear">✕</button>
+                    </div>
+                </div>
+                <div id="conversion-grid" class="conversion-grid"></div>
+            </section>
+        </main>
+    </div>
+
+    <div id="toast" class="toast" aria-live="polite" hidden></div>
+    <script src="/static/app.clean.js"></script>
+</body>
+</html>

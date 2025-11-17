@@ -1,0 +1,11 @@
+{
+  "name": "omnicenter-ui-e2e",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "test:e2e": "playwright test --project=chromium"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.36.0"
+  }
+}

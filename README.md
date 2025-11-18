@@ -2,6 +2,8 @@
 
 OmniConvert is a zero-auth, self-hosted file conversion hub powered by FastAPI + SQLite. It focuses on a clean UX, testable conversion registry, and an extension-friendly plugin model so you can keep adding new format pairs over time.
 
+## https://omniconverters.vercel.app/
+
 ## Highlights
 - ⚡ FastAPI backend with CORS-safe streaming responses and SQLite persistence via SQLModel.
 - 🧩 Conversion registry + decorator-based plugins (`server/converters`) so each `(source,target)` pair is explicit and testable.
